@@ -1,0 +1,30 @@
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+}
+
+version = '1.0.0'
+
+ext {
+    gdxVersion = '1.9.6'
+    junitVersion = '4.12'
+}
+
+
+apply plugin: "java"
+apply plugin: "eclipse"
+
+eclipse.project.name = "gdx-example-tiledmap-stream"
+
+sourceCompatibility = 1.6
+
+dependencies {
+
+    compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+    
+    testCompile "junit:junit:$junitVersion"
+    testCompile "com.badlogicgames.gdx:gdx-backend-lwjgl:$gdxVersion"
+    testCompile "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+}
