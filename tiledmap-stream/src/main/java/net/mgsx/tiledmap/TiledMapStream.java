@@ -20,11 +20,13 @@ import com.badlogic.gdx.math.MathUtils;
 public class TiledMapStream
 {
 
-	private TiledMapLink head, tail;
+	// TODO sourceOffsets doesn't really work with source maps smaller than window size : TODO new test cases
+	
+	private TiledMapLink head;
 	private TiledMap map;
-	private int offsetX;
-	private int sourceOffsetX;
-	private int xLeft, xRight;
+	private int offsetX, offsetY;
+	private int sourceOffsetX, sourceOffsetY;
+	private int xLeft, xRight, xTop, xBottom;
 	
 	private TiledMapWrap wrapLeft = TiledMapWrap.None;
 	private TiledMapWrap wrapRight = TiledMapWrap.None;
@@ -40,32 +42,22 @@ public class TiledMapStream
 	 */
 	public TiledMapStream(float maxWindowWidth, float maxWindowHeight, int tileWidth, int tileHeight) 
 	{
-		this.windowWidth = MathUtils.ceilPositive(maxWindowWidth / tileWidth);
-		this.windowHeight = MathUtils.ceilPositive(maxWindowHeight / tileHeight);
+		this.windowWidth = MathUtils.ceilPositive(maxWindowWidth / tileWidth) + 1;
+		this.windowHeight = MathUtils.ceilPositive(maxWindowHeight / tileHeight) + 1;
 		this.tileWidth = tileWidth;
 		this.tileHeight = tileHeight;
 		
 		map = new TiledMap();
 	}
 	
-	public TiledMapLink appendMap(TiledMap map){
-		TiledMapLink mapLink = new TiledMapLink();
-		mapLink.map = map;
-		mapLink.sizeX = map.getProperties().get("width", Integer.class);
-		mapLink.previousMap = tail;
-		if(tail != null){
-			tail.nextMap = mapLink;
-		}
-		tail = mapLink;
-		if(head == null){
-			head = tail;
-		}
-		return mapLink;
+	public void setMap(TiledMapLink map){
+		head = map;
 	}
 	
 	public void update(OrthographicCamera camera){
 		
 		float worldX = camera.position.x - camera.viewportWidth/2; // TODO handle zoom
+		float worldY = camera.position.y - camera.viewportHeight/2; // TODO handle zoom
 		
 		// TODO if deltaX or deltaY != 0 then recopy
 		// and then fill missing parts
@@ -74,28 +66,95 @@ public class TiledMapStream
 		
 		// remove some tiles (copy map stream)
 		int newOffsetX = MathUtils.floor(worldX / tileWidth);
+		int newOffsetY = MathUtils.floor(worldY / tileHeight);
 		int deltaX = newOffsetX - offsetX;
+		int deltaY = newOffsetY - offsetY;
 		
-		if(deltaX != 0){
+		if(deltaX != 0 || deltaY != 0){
 			for(MapLayer layer : map.getLayers()){
 				TiledMapTileLayer streamLayer = (TiledMapTileLayer)layer;
 				for(int ix = 0 ; ix<windowWidth ; ix++){
 					int srcX = deltaX > 0 ? ix + deltaX : windowWidth-1-ix + deltaX;
 					int dstX = deltaX > 0 ? ix : windowWidth-1-ix;
 					for(int iy=0 ; iy<windowHeight ; iy++){
-						streamLayer.setCell(dstX, iy, streamLayer.getCell(srcX, iy));
+						int srcY = deltaY > 0 ? iy + deltaY : windowHeight-1-iy + deltaY;
+						int dstY = deltaY > 0 ? iy : windowHeight-1-iy;
+						streamLayer.setCell(dstX, dstY, streamLayer.getCell(srcX, srcY));
 					}
 				}
 			}
 			offsetX += deltaX;
 			if(deltaX > 0){
 				xRight -= deltaX;
-			}else{
+			}else if(deltaX < 0){
 				xLeft -= deltaX;
+			}
+			offsetY += deltaY;
+			if(deltaY > 0){
+				xTop -= deltaY;
+			}else if(deltaY < 0){
+				xBottom -= deltaY;
 			}
 		}
 		
 		// add some tiles (fill map stream)
+		
+		// TODO fill 4 times in each direction taking half part into account
+//		stream(xLeft, windowWidth, xBottom, windowHeight - xTop);
+//		stream(xLeft, windowWidth, xBottom, windowHeight - xTop);
+		
+		
+		
+		while(xBottom > 0){
+			
+			xBottom--;
+			
+			TiledMap sourceMap = head.map;
+			
+			int dstY = xBottom;
+			int srcY = offsetY + xBottom + sourceOffsetY;
+			
+			if(srcY < 0){
+				if(head.bottomMap != null){
+					sourceOffsetY += head.sizeY;
+					head = head.bottomMap;
+					srcY = offsetY + xBottom + sourceOffsetY;
+				}else{
+					// TODO wrap mode
+					if(wrapBottom == TiledMapWrap.Clamp){
+						srcY = 0;
+					}
+				}
+			}
+			
+			streamV(sourceMap, srcY, dstY);
+		}
+		
+		while(xTop < windowHeight){
+			
+			TiledMap sourceMap = head.map;
+			
+			int dstY = xTop;
+			int srcY = offsetY + xTop + sourceOffsetY;
+			
+			if(srcY >= head.sizeY){
+				if(head.topMap != null){
+					sourceOffsetY -= head.sizeY;
+					head = head.topMap;
+					srcY = offsetY + xTop + sourceOffsetY;
+				}else{
+					// TODO wrap mode
+					if(wrapTop == TiledMapWrap.Clamp){
+						srcY = head.sizeY - 1;
+					}
+				}
+			}
+			
+			streamV(sourceMap, srcY, dstY);
+			
+			xTop++;
+		}
+		
 		while(xLeft > 0){
 			
 			xLeft--;
@@ -106,15 +165,15 @@ public class TiledMapStream
 			int srcX = offsetX + xLeft + sourceOffsetX;
 			
 			if(srcX < 0){
-				if(head.previousMap != null){
+				if(head.leftMap != null){
 					sourceOffsetX += head.sizeX;
-					head = head.previousMap;
+					head = head.leftMap;
 					srcX = offsetX + xLeft + sourceOffsetX;
 				}else{
 					// TODO wrap mode
-					if(wrapRight == TiledMapWrap.Clamp){
+					if(wrapLeft == TiledMapWrap.Clamp){
 						srcX = 0;
-					}else if(wrapRight == TiledMapWrap.Repeat){
+					}else if(wrapLeft == TiledMapWrap.Repeat){
 						// TODO not really working
 						sourceOffsetX += head.sizeX;
 						srcX = offsetX + xLeft + sourceOffsetX+head.sizeX;
@@ -122,19 +181,7 @@ public class TiledMapStream
 				}
 			}
 			
-			for(MapLayer layer : sourceMap.getLayers()){
-				TiledMapTileLayer sourceLayer = (TiledMapTileLayer)layer;
-				TiledMapTileLayer streamLayer = (TiledMapTileLayer)map.getLayers().get(layer.getName());
-				if(streamLayer == null){
-					streamLayer = new TiledMapTileLayer(windowWidth, windowHeight, tileWidth, tileHeight);
-					streamLayer.setName(sourceLayer.getName());
-					map.getLayers().add(streamLayer);
-				}
-				
-				for(int iy=0 ; iy<windowHeight ; iy++){
-					streamLayer.setCell(dstX, iy, sourceLayer.getCell(srcX, iy));
-				}
-			}
+			streamH(sourceMap, srcX, dstX);
 		}
 		
 		
@@ -146,9 +193,9 @@ public class TiledMapStream
 			int srcX = offsetX + xRight + sourceOffsetX;
 			
 			if(srcX >= head.sizeX){
-				if(head.nextMap != null){
+				if(head.rightMap != null){
 					sourceOffsetX -= head.sizeX;
-					head = head.nextMap;
+					head = head.rightMap;
 					srcX = offsetX + xRight + sourceOffsetX;
 				}else{
 					// TODO wrap mode
@@ -161,23 +208,44 @@ public class TiledMapStream
 				}
 			}
 			
-			for(MapLayer layer : sourceMap.getLayers()){
-				TiledMapTileLayer sourceLayer = (TiledMapTileLayer)layer;
-				TiledMapTileLayer streamLayer = (TiledMapTileLayer)map.getLayers().get(layer.getName());
-				if(streamLayer == null){
-					streamLayer = new TiledMapTileLayer(windowWidth, windowHeight, tileWidth, tileHeight);
-					streamLayer.setName(sourceLayer.getName());
-					map.getLayers().add(streamLayer);
-				}
-				
-				for(int iy=0 ; iy<windowHeight ; iy++){
-					streamLayer.setCell(dstX, iy, sourceLayer.getCell(srcX, iy));
-				}
-			}
+			streamH(sourceMap, srcX, dstX);
 			
 			xRight++;
 		}
 	}
+	
+	private void streamH(TiledMap sourceMap, int srcX, int dstX){
+		for(MapLayer layer : sourceMap.getLayers()){
+			TiledMapTileLayer sourceLayer = (TiledMapTileLayer)layer;
+			TiledMapTileLayer streamLayer = getStreamLayer(sourceLayer);;
+			
+			for(int iy=0 ; iy<windowHeight ; iy++){
+				streamLayer.setCell(dstX, iy, sourceLayer.getCell(srcX, iy));
+			}
+		}
+	}
+	
+	private void streamV(TiledMap sourceMap, int srcY, int dstY){
+		for(MapLayer layer : sourceMap.getLayers()){
+			TiledMapTileLayer sourceLayer = (TiledMapTileLayer)layer;
+			TiledMapTileLayer streamLayer = getStreamLayer(sourceLayer);
+			
+			for(int ix=0 ; ix<windowWidth ; ix++){
+				streamLayer.setCell(ix, dstY, sourceLayer.getCell(ix, srcY));
+			}
+		}
+	}
+	
+	private TiledMapTileLayer getStreamLayer(TiledMapTileLayer sourceLayer){
+		TiledMapTileLayer streamLayer = (TiledMapTileLayer)map.getLayers().get(sourceLayer.getName());
+		if(streamLayer == null){
+			streamLayer = new TiledMapTileLayer(windowWidth, windowHeight, tileWidth, tileHeight);
+			streamLayer.setName(sourceLayer.getName());
+			map.getLayers().add(streamLayer);
+		}
+		return streamLayer;
+	}
+
 
 	public TiledMapTileLayer getTileLayer(String name) {
 		return (TiledMapTileLayer)map.getLayers().get(name);
@@ -211,12 +279,14 @@ public class TiledMapStream
 	}
 	
 	private void begin(Camera camera) {
-		camera.position.x -= offsetX * 32;
+		camera.position.x -= offsetX * tileWidth;
+		camera.position.y -= offsetY * tileHeight;
 		camera.update();
 	}
 	
 	private void end(Camera camera) {
-		camera.position.x += offsetX * 32;
+		camera.position.x += offsetX * tileWidth;
+		camera.position.y += offsetY * tileHeight;
 		camera.update();
 	}
 

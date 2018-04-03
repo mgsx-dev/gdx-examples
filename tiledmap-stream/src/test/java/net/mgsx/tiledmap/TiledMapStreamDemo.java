@@ -26,18 +26,29 @@ public class TiledMapStreamDemo extends Game {
 		
 		TiledMap map = new TmxMapLoader().load("map-00-00.tmx");
 		
+		TiledMapLink mapChunk = new TiledMapLink(map);
+
 		mapStream = new TiledMapStream(640, 480, 32, 32);
-		TiledMapLink link = mapStream.appendMap(map);
+		mapStream.setMap(mapChunk);
 		
-		// mode loop both ways
-//		link.previousMap = link;
-//		link.nextMap = link;
+		// XXX mode loop both ways
+		mapChunk.leftMap = mapChunk;
+		mapChunk.rightMap = mapChunk;
+		mapChunk.topMap = mapChunk;
+		mapChunk.bottomMap = mapChunk;
 		
 		// mode clamp all
-		mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
+		// XXX mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
 		
 		// mode config
 		// XXX mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Repeat, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
+		
+		// XXX mix mode
+//		mapChunk.leftMap = mapChunk;
+//		mapChunk.rightMap = mapChunk;
+//		mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
+		
+		// XXX normal mode : no loop nothing like normal map
 	}
 	
 	@Override
