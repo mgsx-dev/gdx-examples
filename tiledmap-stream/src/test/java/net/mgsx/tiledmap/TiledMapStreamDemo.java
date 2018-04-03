@@ -17,18 +17,46 @@ public class TiledMapStreamDemo extends Game {
 
 	private OrthographicCamera camera;
 	private OrthogonalTiledMapRenderer renderer;
-	
-	private TiledMap map;
+	private TiledMapStream mapStream;
 	
 	@Override
 	public void create() {
 		camera = new OrthographicCamera();
 		renderer = new OrthogonalTiledMapRenderer(null);
-		map = new TmxMapLoader().load("map-00-00.tmx");
+		
+		TiledMap map = new TmxMapLoader().load("map-00-00.tmx");
+		
+		mapStream = new TiledMapStream(640, 480, 32, 32);
+		TiledMapLink link = mapStream.appendMap(map);
+		
+		// mode loop both ways
+//		link.previousMap = link;
+//		link.nextMap = link;
+		
+		// mode clamp all
+		mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
+		
+		// mode config
+		// XXX mapStream.setWrap(TiledMapWrap.Clamp, TiledMapWrap.Repeat, TiledMapWrap.Clamp, TiledMapWrap.Clamp);
 	}
 	
 	@Override
 	public void render() {
+		float delta = Gdx.graphics.getDeltaTime();
+		
+		updateCamera(delta);
+		
+		// stream the map to ensure visibility from camera bounds
+		mapStream.update(camera);
+		
+		Gdx.gl.glClearColor(.7f, .9f, 1f, 0f);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+		
+		// render the map at camera bounds
+		mapStream.render(camera, renderer);
+	}
+	
+	private void updateCamera(float delta) {
 		float dx=0, dy=0;
 		if(Gdx.input.isKeyPressed(Input.Keys.LEFT)){
 			dx = -1;
@@ -42,19 +70,20 @@ public class TiledMapStreamDemo extends Game {
 		if(Gdx.input.isKeyPressed(Input.Keys.DOWN)){
 			dy = -1;
 		}
+		if(Gdx.input.isKeyPressed(Input.Keys.PAGE_UP)){
+			camera.zoom *= 1 + delta;
+		}
+		if(Gdx.input.isKeyPressed(Input.Keys.PAGE_DOWN)){
+			camera.zoom /= 1 + delta;
+		}
+		if(Gdx.input.isKeyPressed(Input.Keys.HOME)){
+			camera.zoom = 1;
+		}
 		
-		float delta = Gdx.graphics.getDeltaTime();
 		float speed = 128;
 		camera.position.x += dx * speed * delta;
 		camera.position.y += dy * speed * delta;
 		camera.update();
-		
-		Gdx.gl.glClearColor(.7f, .9f, 1f, 0f);
-		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-		
-		renderer.setMap(map);
-		renderer.setView(camera);
-		renderer.render();
 	}
 	
 	@Override
