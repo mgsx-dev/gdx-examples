@@ -43,10 +43,10 @@ public class MeshStart extends ApplicationAdapter
 		// create models
 		VertexAttributes attributes = new VertexAttributes(
 				VertexAttribute.Position(),
-				new VertexAttribute(VertexAttributes.Usage.Generic, 1, "a_index")
+				new VertexAttribute(VertexAttributes.Usage.Generic, 2, "a_index")
 				);
 		
-		int DIM = 5;
+		int DIM = 20;
 		int numVertices = DIM * DIM * DIM;
 		int numIndices = 0;
 		int i=0;
@@ -61,7 +61,8 @@ public class MeshStart extends ApplicationAdapter
 					vertices[i+0] = x * scale;
 					vertices[i+1] = y * scale;
 					vertices[i+2] = z * scale;
-					vertices[i+3] = (z * DIM + y) * DIM * x;
+					vertices[i+3] = ((z * DIM + y) * DIM + x);
+					vertices[i+4] = (x + y + z) * scale;
 					i+=stride;
 				}
 			}
