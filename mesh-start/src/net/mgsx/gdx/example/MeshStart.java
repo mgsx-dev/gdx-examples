@@ -42,7 +42,8 @@ public class MeshStart extends ApplicationAdapter
 		
 		// create models
 		VertexAttributes attributes = new VertexAttributes(
-				VertexAttribute.Position()
+				VertexAttribute.Position(),
+				new VertexAttribute(VertexAttributes.Usage.Generic, 1, "a_index")
 				);
 		
 		int DIM = 5;
@@ -51,7 +52,8 @@ public class MeshStart extends ApplicationAdapter
 		int i=0;
 		float scale = 1f / (DIM - 1);
 		
-		float [] vertices = new float[numVertices * 3];
+		int stride = attributes.vertexSize / 4;
+		float [] vertices = new float[numVertices * stride];
 		
 		for(int z=0 ; z<DIM ; z++){
 			for(int y=0 ; y<DIM ; y++){
@@ -59,7 +61,8 @@ public class MeshStart extends ApplicationAdapter
 					vertices[i+0] = x * scale;
 					vertices[i+1] = y * scale;
 					vertices[i+2] = z * scale;
-					i+=3;
+					vertices[i+3] = (z * DIM + y) * DIM * x;
+					i+=stride;
 				}
 			}
 		}
@@ -83,6 +86,7 @@ public class MeshStart extends ApplicationAdapter
 	
 	protected void updateScene(float deltaTime)
 	{
+		time += deltaTime;
 		// update camera
 		cameraControl.update();
 	}
@@ -93,6 +97,7 @@ public class MeshStart extends ApplicationAdapter
 		
 		shader.begin();
 		shader.setUniformMatrix("u_projTrans", camera.combined);
+		shader.setUniformf("u_time", time);
 		mesh.render(shader, GL20.GL_POINTS);
 		shader.end();
 	}
